@@ -99,3 +99,16 @@ runn();
     })
     console.log(a, '-----------------')
 })();
+console.log(
+    format(`
+        你的: ?
+        我 的 : ?
+        `, {
+        你的: "是你的",
+        的: "是你的",
+        age: 1,
+        counted() {
+            return 1
+        }
+    })
+)
