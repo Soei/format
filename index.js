@@ -50,16 +50,12 @@ function _GetExp2funcValue(exp, data, propertys) {
                 picker.push(_);
             }
         }, picker, data, args);
-        try {
-            ex = new Function(
-                // 参数
-                args.join(COMMA),
-                // 返回值
-                'return ' + exp
-            )/* 调用 */.apply(Nil, picker);
-        } catch (e) {
-            ex = exp;
-        }
+        ex = new Function(
+            // 参数
+            args.join(COMMA),
+            // 返回值
+            'return ' + exp
+        )/* 调用 */.apply(Nil, picker);
     } else {
         ex = (
             invalid = isNil(
@@ -156,13 +152,17 @@ function iStringFormat(args) {
             host = TextFormat(host, args);
     }
     args || (args = {});
-    var has = !!args.now;
+    var has = !!args.now, ret;
     merge(args, iInnerFunx);
     args._groups__ = {};
     // 替换字符串内参数,区间等
-    var ret = (host + SPACE).replace(rFormat, iReplace.bind(args));
-    delete args._groups__;
-    has || (delete args.now);
+    try { 
+        ret = (host + SPACE).replace(rFormat, iReplace.bind(args));
+        delete args._groups__;
+        has || (delete args.now);
+    } catch (e) {
+        ret = host;
+    }
     return ret;
 }
 
