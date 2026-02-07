@@ -57,7 +57,6 @@ function _GetExp2funcValue(exp, data, propertys) {
             'return ' + exp
         )/* 调用 */.apply(Nil, picker);
     } else {
-        debugger
         ex = (
             invalid = isNil(
                 ex = data[exp]
