@@ -39,7 +39,7 @@ function GetOrCheckData(chr, prop) {
 function _GetExp2funcValue(exp, data, propertys) {
     var ex, invalid;
     if (rEXPR.test(exp)) {
-        var afunArgs = exp.match(/(.?[\w_&$]+)/g),
+        var afunArgs = exp.match(/(\.?[\w_&$]+)/g),
             //.replace(KEYWORD, SPACE).match(/([\d_$]+\w*)/ig) || [], 
             picker = [], args = [];
         each(afunArgs, function (_, k, picker, data, args) {
