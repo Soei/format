@@ -50,12 +50,16 @@ function _GetExp2funcValue(exp, data, propertys) {
                 picker.push(_);
             }
         }, picker, data, args);
-        ex = new Function(
-            // 参数
-            args.join(COMMA),
-            // 返回值
-            'return ' + exp
-        )/* 调用 */.apply(Nil, picker);
+        try {
+            ex = new Function(
+                // 参数
+                args.join(COMMA),
+                // 返回值
+                'return ' + exp
+            )/* 调用 */.apply(Nil, picker);
+        } catch (e) {
+            ex = exp;
+        }
     } else {
         ex = (
             invalid = isNil(
