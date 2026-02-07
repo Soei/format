@@ -24,23 +24,57 @@ var iInnerFunx = {
 // 关键词
 var KEYWORD = /(?:\W|^)(?:var|let|const|in|while|for|of|this|true|false)\W+/ig;
 /* (expr[+-!] | name [expr] | name ? [true] : [false]) name2*/
-var rEXPR = /(?:[\+\-\!]+|[_$\w]+\s*[><=%\+\-\*/|&!^]|\?\s*[_$]*\w+\s*\:)\s*[_$\w]+/;
+var rEXPR = /(?:[\+\-\!\.]+|[_$\w]+\s*[><=%\+\-\*/|&!^]|\?\s*[_$]*\w+\s*\:)\s*[_$\w]+/;
+
+var GetOrCheckDataMap = {}
+
+function GetOrCheckData(chr, prop) {
+    return isNaN(+prop) ? chr.replace(
+        GetOrCheckDataMap[prop] || (GetOrCheckDataMap[prop] = new RegExp("(" + prop + ")"))
+        ,
+        '_$1'
+    ) : chr;
+}
 // 获取表达式对应的值
 function _GetExp2funcValue(exp, data, propertys) {
     var ex, invalid;
     if (rEXPR.test(exp)) {
-        var afunArgs = exp.replace(KEYWORD, SPACE).match(/([a-z_$]+\w*)/ig) || [], picker = [];
-        each(afunArgs, function (_, k, picker, data) {
-            picker.push(data[k]);
-        }, picker, data);
+        var afunArgs = exp.match(/(.?[\w_&$]+)/g),
+            //.replace(KEYWORD, SPACE).match(/([\d_$]+\w*)/ig) || [], 
+            picker = [], args = [];
+        each(afunArgs, function (_, k, picker, data, args) {
+            _ = data[k];
+            if (_) {
+                args.push(GetOrCheckData(k, k));
+                exp = GetOrCheckData(exp, k);
+                picker.push(_);
+            }
+        }, picker, data, args);
         ex = new Function(
             // 参数
-            afunArgs.join(COMMA),
+            args.join(COMMA),
             // 返回值
             'return ' + exp
         )/* 调用 */.apply(Nil, picker);
     } else {
-        ex = (invalid = isNil(ex = data[exp])) && propertys && /^[_$]*[\w]+$/.test(exp) ? propertys : (!invalid ? ex : propertys || exp);
+        debugger
+        ex = (
+            invalid = isNil(
+                ex = data[exp]
+            )
+        )
+            &&
+            propertys && /^[_$]*[\w]+$/.test(exp)
+            ?
+            propertys
+            :
+            (
+                !invalid
+                    ?
+                    ex
+                    :
+                    propertys || exp
+            );
         if (isFunction(ex)) {
             ex = ex.apply(data, isArray(propertys) ? propertys : isNil(propertys) ? Nil : [propertys])
         }
