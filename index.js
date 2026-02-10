@@ -15,72 +15,88 @@ var Nil,
     SPACE = '',
     r_A_Z = /(\d+)\-(\d+)/;
 
-/* @see iReplace(...) {\d-\d}匹配提前 $1 $2, 和{prop}部分匹配冲突, 当prop内含有 - 号时*/
-var rFormat = /(?:{(\d+)\-(\d+)}|\[([\w-]+)\]|\{([^,{}\[\]]+)\}|\[([^\[\]\{\}'"]+)\]|([\w$\u4e00-\u9fa5]+)(\s*(?:=|:\s*))\?)|{([^,\}\{]+),([^,}]*),([^,}]*)}/g;
 var rFormatSp = /(?:,)/;
-var iInnerFunx = {
+/* @see iReplace(...) {\d-\d}匹配提前 $1 $2, 和{prop}部分匹配冲突, 当prop内含有 - 号时*/
+var rFormat = /(?:{(\d+)\-(\d+)}|\{([^,{}]+)\}|\[([\w-]+)\]|\[([^\[\]\{\}'"]+)\]|([\w$\u4e00-\u9fa5]+)(\s*(?:=|:\s*))\?)|{([^,\}\{]+),([^,}]*),([^,}]*)}/g;
+
+var rProperty = /(?=\s|^)(?:[+-]{2}|!+|)([\d_$a-z]+[_$\w]*)(?:(?:\??\.[_$\w]+|)(?:(?:\?\.|)\[(['"]*)[\d\w]+\2\]|))*(?:[+-]{2}|)/g,
+    filters = [
+        [/(?:\[(['"]*)([\d]+)\1\]|(?:this\.|^)(\d+))((?:\.[_$\w]+)*)/g, "this[$2$3]$4"]
+    ];
+
+
+// 内置函数映射
+var BUILT_IN_FUNCTIONS = {
     now: function () { return +new Date; }
 }
-// 关键词
-var KEYWORD = /(?:\W|^)(?:var|let|const|in|while|for|of|this|true|false)\W+/ig;
-/* (expr[+-!] | name [expr] | name ? [true] : [false]) name2*/
-var rEXPR = /(?:[\+\-\!\.]+|[_$\w]+\s*[><=%\+\-\*/|&!^]|\?\s*[_$]*\w+\s*\:)\s*[_$\w]+/;
 
-var GetOrCheckDataMap = {}
+// 缓存正则表达式
+var REGEX_CACHE = {}
 
-function GetOrCheckData(chr, prop) {
+/**
+ * 获取或检查数据，并缓存正则表达式
+ * @param {string} chr - 输入字符串
+ * @param {string} prop - 属性名
+ * @returns {string} - 处理后的字符串
+ */
+function getOrCheckData(chr, prop) {
     return isNaN(+prop) ? chr.replace(
-        GetOrCheckDataMap[prop] || (GetOrCheckDataMap[prop] = new RegExp("(" + prop + ")"))
+        REGEX_CACHE[prop] || (REGEX_CACHE[prop] = new RegExp("(" + prop + ")"))
         ,
         '_$1'
     ) : chr;
 }
+/**
+ * 字符串批量替换
+ * @param {string} value - 原始字符串
+ * @param {Array} replacements - 替换规则列表
+ * @returns {string} - 替换后的字符串
+ */
+function batchReplace(value, replacements) {
+    for (var i = 0, val; val = replacements[i++];) {
+        value = SPACE.replace.apply(value, val);
+    }
+    return value;
+}
 // 获取表达式对应的值
-function _GetExp2funcValue(exp, data, propertys) {
-    var ex, invalid;
-    if (rEXPR.test(exp)) {
-        var afunArgs = exp.match(/(\.?[\w_&$]+)/g),
-            //.replace(KEYWORD, SPACE).match(/([\d_$]+\w*)/ig) || [], 
-            picker = [], args = [];
-        each(afunArgs, function (_, k, picker, data, args) {
+function _GetExp2funcValue(expression, data, invalid) {
+    var ex, afunArgs;
+    expression = batchReplace(expression, filters);
+    if (afunArgs = expression.match(rProperty)) {
+        var values = [], args = [];
+        each(afunArgs, function (_, k, values, data, args) {
+            rProperty.lastIndex = 0;
+            k = rProperty.exec(k)[1];
             _ = data[k];
-            if (_) {
-                args.push(GetOrCheckData(k, k));
-                exp = GetOrCheckData(exp, k);
-                picker.push(_);
+            if (!isNil(_)) {
+                args.push(getOrCheckData(k, k));
+                expression = getOrCheckData(expression, k);
+                values.push(isFunction(_) ? iRuner(_) : _);
             }
-        }, picker, data, args);
-        ex = new Function(
-            // 参数
-            args.join(COMMA),
-            // 返回值
-            'return ' + exp
-        )/* 调用 */.apply(Nil, picker);
-    } else {
-        ex = (
-            invalid = isNil(
-                ex = data[exp]
-            )
-        )
-            &&
-            propertys && /^[_$]*[\w]+$/.test(exp)
-            ?
-            propertys
-            :
-            (
-                !invalid
-                    ?
-                    ex
-                    :
-                    propertys || exp
-            );
-        if (isFunction(ex)) {
-            ex = ex.apply(data, isArray(propertys) ? propertys : isNil(propertys) ? Nil : [propertys])
+        }, values, data, args);
+        if (values.length || args.length || expression.indexOf('this') >= 0) {
+            ex = new Function(
+                // 参数
+                args.join(COMMA),
+                // 返回值
+                'return ' + expression
+            )/* 调用 */.apply(data, values);
+        } else {
+            return invalid;
         }
-    };
+    } else {
+        ex = data[expression] || expression;
+    }
     return ex;
 }
-
+/**
+ * 生成指定范围内的随机数或执行回调
+ * @param {number|string} start - 起始值
+ * @param {number} end - 结束值
+ * @param {Function} callback - 回调函数（可选）
+ * @param {boolean} brimless - 是否排除边界值
+ * @returns {number|void} - 随机数或回调结果
+ */
 function between(a, z, callback, brimless/* 无边缘 */) {
     if (isString(a)) {
         let az = a.match(r_A_Z);
@@ -107,23 +123,24 @@ function between(a, z, callback, brimless/* 无边缘 */) {
         return (Math.random() * 1e6 >> 0) % lof + min;
     }
 }
+var REGEX_PLACEHOLDER = /\?/;
+var REGEX_PLACEHOLDER_G = /\?/g;
 /**
- * 替换字符串中含有的 ? 按照顺序替换
- * @param {String} mode 
- * @param {String|Array} args 
- * @returns 
+ * 替换字符串中的占位符 `?`
+ * @param {string} template - 模板字符串
+ * @param {Array|string} args - 参数列表
+ * @returns {string} - 替换后的字符串
  */
-function TextFormat(mode, args) {
-    var mat = /\?/;
-    if (mat.test(mode)) {
+function replacePlaceholders(template, args) {
+    if (REGEX_PLACEHOLDER.test(template)) {
         isArray(args) || (args = iList2Array(arguments), args.shift());
         isString(args) && (args = iSplit(args));
-        var list = mode.match(/\?/g), pre;
+        var list = template.match(REGEX_PLACEHOLDER_G), pre;
         for (var i = 0, lenth = list.length; i < lenth; i++) {
-            mode = mode.replace(mat, (pre = ((isNil(args[i]) ? pre : args[i]))));
+            template = template.replace(REGEX_PLACEHOLDER, (pre = ((isNil(args[i]) ? pre : args[i]))));
         }
     }
-    return mode;
+    return template;
 }
 /**
  * 字符串格式化 
@@ -147,17 +164,14 @@ function iStringFormat(args) {
             if (args.length == 1 && !isSimplyType(args[0]) /* 非基本类型 */) args = args.shift();
         }
         /* 功能分流 处理 caller('?............? ?', 1, 2, 3) */
-        if (/[?]/.test(host) && isArray(args))
-            // return 
-            host = TextFormat(host, args);
+        if (REGEX_PLACEHOLDER.test(host) && isArray(args)) host = replacePlaceholders(host, args);
     }
     args || (args = {});
     var has = !!args.now, ret;
-    merge(args, iInnerFunx);
-    args._groups__ = {};
+    merge(args, BUILT_IN_FUNCTIONS);
     // 替换字符串内参数,区间等
-    try { 
-        ret = (host + SPACE).replace(rFormat, iReplace.bind(args));
+    try {
+        ret = (host + SPACE).replace(rFormat, iReplace.bind(args, args._groups__ = {}));
         delete args._groups__;
         has || (delete args.now);
     } catch (e) {
@@ -166,28 +180,47 @@ function iStringFormat(args) {
     return ret;
 }
 
+merge(
+    String.prototype,
+    {
+        format: iStringFormat,
+        on: iStringFormat
+    }
+)
+
 /**
- * @see rFormat
- * @returns String
+ * 替换函数核心逻辑
+ * @param {string} source - 匹配到的源字符串
+ * @param {string} a - 起始值
+ * @param {string} z - 结束值
+ * @param {string} arg - 属性名
+ * @param {string} prop - 表达式
+ * @param {string} list - 数组形式
+ * @param {string} attr - 属性名称
+ * @param {string} eq - 等号
+ * @param {string} condition - 条件表达式
+ * @param {string} trueVal - 真值
+ * @param {string} falseVal - 假值
+ * @returns {string} - 替换结果
  */
-function iReplace(source /*正则匹配的字符串*/, a /*开始取值范围*/, z /*结束*/,
-    arg /*属性 [arg]*/, prpo/* {arg1}, {expr...} */,
+function iReplace(groups, source /*正则匹配的字符串*/, a /*开始取值范围*/, z /*结束*/,
+    prop/* {arg1}, {expr...} */, arg /*属性 [arg]*/, 
     list /*数组 [a, b, c]*/,
     attr /*属性名称 attr=? 替换?为attr对应的属性值 配合后面 eq*/, eq /*等号*/,
-    _if, _true, _false
+    condition, trueVal, falseVal
 ) {
-    var args = this, _G = args._groups__;
-    if (_G && source in _G) return _G[source];
+    var args = this;
+    if (groups && source in groups) return groups[source];
     // 判断是否为数值
     if (/^\d+$/.test(a + z)) {
         return between(a, z);
     }
     /* 处理类似三目运算  exp(?)true(:)fasle `{true|false|props, value1, value2}` */
-    if (_if) {
+    if (condition) {
         return _GetExp2funcValue(
-            _GetExp2funcValue(_if, args)
-                ? _true
-                : _false,
+            _GetExp2funcValue(condition, args)
+                ? trueVal
+                : falseVal,
             args
         );
     }
@@ -203,17 +236,41 @@ function iReplace(source /*正则匹配的字符串*/, a /*开始取值范围*/,
             list[between(0, list.length - 1)];
         return val;
     }
-    var key = prpo || arg || attr;
-    attr || (attr = SPACE, eq || (eq = SPACE));
+    var key = prop || arg || attr;
     if (args && key) {
-        var r = Math.random();
-        val = _GetExp2funcValue(key, args, r);
-        return val == r ? source : attr + eq + val;
+        try {
+            var invalid = Math.random();
+            val = _GetExp2funcValue(key, args, invalid);
+            return invalid == val ? source : eq ? (attr || SPACE) + eq + val : val;
+        } catch (e) {
+            MarkErr(e, source);
+        }
     }
-    _G[source] = source;
+    groups[source] = source;
     return source;
 }
+function MarkErr(e, source) {
+    source = "@soei/format\n\n ╰─ " + source;
 
+    var stack = e.message || e.stack;
+    var errposition = stack.replace(/(?:.*(?:token|number|reading)(?:\:?\s+(["'])((?:(?!\1).)+)\1|).*|(\w+) is not defined)/, '$2$3');
+    if (!errposition) {
+        errposition = source.match(/([\d]+\.)?\d+/g)[0];
+    }
+    var offset = Array(Math.max(0, iRuner(-1, source.split('\n')).indexOf(errposition) + 1 + errposition.length / 2 >> 0)).join(' ')
+    console.warn(
+        source.replace(errposition, '%c' + errposition + '%c')
+        + '\n'
+        + offset
+        + '^\n'
+        + offset
+        + '╰─ %c '
+        + stack,
+        "color: #deb887;",
+        "color: none;",
+        "color: #deb887;"
+    );
+}
 /**
  * 隐藏属性格式化输出
  * @param {Array|String} data 如果是String 'attr[,|;]attr'
@@ -246,4 +303,8 @@ StringMap.prototype.toString = function (data) {
     return iStringFormat(this.$mode, data)
 }
 
-module.exports = { format: iStringFormat, between, StringMap }
+module.exports = {
+    format: iStringFormat,
+    between,
+    StringMap
+}

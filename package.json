@@ -1,6 +1,6 @@
 {
   "name": "@soei/format",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "字符串格式化:  format(`query:?-?-?-?-{[0]>+1,1,2}`, +new Date, 1 > 2) => query:1711361589087-false-false-false-2",
   "main": "index.js",
   "scripts": {

@@ -2,6 +2,45 @@
 
 ## [线上示例](https://alwbg.github.io)
 
+## 更新日志
+
+### 版本 1.2.0
+
+- `format`(temp, ...args) 方法
+
+  ```javascript
+  format("{name} is {this.age++} years old. Next year, he will be {age}.", {
+    name: "Tom",
+    age: 3,
+  });
+  // Tom is 3 years old. Next year, he will be 4.
+
+  // 异常输出
+  format("{name} is {this.age++ 1} years old. Next year, he will be {age}.", {
+    name: "Tom",
+    age: 3,
+  });
+  /*
+  @soei/format
+  
+  ╰─ {this.age++ 1}
+                  ^
+                  ╰─  Unexpected number
+  输出: Tom is {this.age++ 1} years old. Next year, he will be 1.
+  */
+  // 多参数
+  format(
+    "{0.name} is {0.age} years old. Next year, he will be {1} {2}",
+    {
+      name: "Tom",
+      age: 3,
+    },
+    "bigger",
+    "than before",
+  );
+  // Tom is 3 years old. Next year, he will be bigger than before
+  ```
+
 > StringMap 的基本用法
 
 ```javascript
@@ -10,23 +49,22 @@ const soei = require("@soei/format");
 let StringMap = soei.StringMap;
 // 或
 import { StringMap } from "@soei/format";
-let NM = new StringMap('name,age,sex,height'/* , '|' // 默认'/' */);
+let NM = new StringMap("name,age,sex,height" /* , '|' // 默认'/' */);
 
 NM.toString({
-    name: 'Tom',
-    age: 3
-})
+  name: "Tom",
+  age: 3,
+});
 // Tom/3//
 NM.toString({
-    height: '120cm'
-})
+  height: "120cm",
+});
 // Tom/3//120cm
-NM.data()
+NM.data();
 // { name: 'Tom', age: '3', sex: '', height: '120cm' }
-NM.data('jerry/13//130cm')
+NM.data("jerry/13//130cm");
 // { name: 'jerry', age: '13', sex: '', height: '120cm' }
 ```
-
 
 > format 的基本用法
 
@@ -123,11 +161,11 @@ format("{now}");
 format("{fx} is in!", {
   fx: () => {
     return "string";
-  }
+  },
 });
 // 'string is in!'
 format("{fx} is in!", {
-  fx: "string"
+  fx: "string",
 });
 // 'string is in!'
 ```
