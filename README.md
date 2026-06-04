@@ -18,7 +18,7 @@
   // 异常输出
   format("{name} is {this.age++ 1} years old. Next year, he will be {age}.", {
     name: "Tom",
-    age: 3,
+    age: 1,
   });
   /*
   @soei/format

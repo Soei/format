@@ -71,7 +71,7 @@ function _GetExp2funcValue(expression, data, invalid) {
             if (!isNil(_)) {
                 args.push(getOrCheckData(k, k));
                 expression = getOrCheckData(expression, k);
-                values.push(isFunction(_) ? iRuner(_) : _);
+                values.push(isFunction(_) ? iRuner(_, data) : _);
             }
         }, values, data, args);
         if (values.length || args.length || expression.indexOf('this') >= 0) {
